@@ -434,7 +434,7 @@ CN_Data_Clean %>%
     )
 ```
 
-### CN Ratios By Depth
+### 4.5 CN Ratios By Depth
 
 ```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
 CN_Data_Clean %>% 
@@ -458,7 +458,7 @@ CN_Data_Clean %>%
     )
 ```
 
-### % Carbon and BD
+### 4.6 % Carbon and BD
 
 #### Should we see if the %Carbon in soil and bulk density have a correlation? Lets find out.
 
