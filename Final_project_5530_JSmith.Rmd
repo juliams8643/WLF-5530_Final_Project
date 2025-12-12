@@ -460,7 +460,7 @@ CN_Data_Clean %>%
 
 ### % Carbon and BD
 
-#### Should we see if the %Carbon in soil and bulk density have a correlation? Lets find out.
+#### Should we see if the %Carbon in soil and bulk density have a correlation? Lets find out. (Spoiler: There is somewhat of a correlation)
 
 ```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
 CN_BD_Data %>% 
@@ -478,5 +478,5 @@ geom_point()+
     plot.title = element_text(size = 16, hjust = 0.5))
 
 ```
-##### This is somewhat of a correlation!
+
 
