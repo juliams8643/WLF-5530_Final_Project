@@ -44,7 +44,7 @@ Soil Respiration: We have multiple sampling events of each collar over a period 
 
 ## Chapter 2: Setting up the database
 
-### Database visualization
+### 2.1 Database visualization
 
 The Site_Soil_Collars_Key references the Site Names and (Soil respiration) Collars, mainly for soil respiration sampling and keeping track of which collars are in which sites and what treatment is in each site. 
 
@@ -460,7 +460,7 @@ CN_Data_Clean %>%
 
 ### % Carbon and BD
 
-#### Should we see if the %Carbon in soil and bulk density have a correlation? Lets find out. (Spoiler: There is somewhat of a correlation)
+#### Should we see if the %Carbon in soil and bulk density have a correlation? Lets find out.
 
 ```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
 CN_BD_Data %>% 
@@ -478,5 +478,5 @@ geom_point()+
     plot.title = element_text(size = 16, hjust = 0.5))
 
 ```
-
+##### This is somewhat of a correlation!
 
