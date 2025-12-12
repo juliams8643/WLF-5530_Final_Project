@@ -1,0 +1,482 @@
+---
+title: "Final_Project_WLF5530"
+author: "Julia Smith"
+date: "2025-12-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chapter 1: The Impact of Biochar on Forest Soil Characteristics in Northern Idaho
+
+
+### 1.1 Background
+
+Climate change is causing an overall increase in Earth's average temperature. In the dry forests of Northern Idaho, this has also caused increased temperatures and decreased precipitation. Overall, soil moisture has seen a decline, along with other soil health factors. To address these negative impacts, we can potentially apply biochar to forest soils. Biochar is a carbon rich product that is created when biomass such as wood or manure is burned. We can potentially source biochar from material that is created through forest thinning treatments. Forest thinning is a management practice that clears out small trees and brush (slash) from the understory of forest to prevent wildfire spread. Typically, these slash materials are disposed of via pile burning, which harms the soil environment and releases harmful emissions. Here, we propose creating biochar out of these slash materials to apply to the forest soils to potentially improve forest soil health. We will monitor soil carbon and nitrogen levels, bulk density, and soil respiration over time to see if the biochar improves forest health.
+
+### 1.2 Study Site
+
+Our study site is located just south of Plummer, ID on the Couer d' Alene tribe's land. It is in a mixed conifer forest, but our specific stand where our plots are is entirely ponderosa pine.
+
+```{r site_map, out.width = "50%", fig.cap="Map of study site", echo=FALSE}
+knitr::include_graphics("C:/Users/juliams/OneDrive - University of Idaho/INSPIRE_Forest/Photos/GIS_Map_Site.png")
+```
+
+
+### 1.3 Methods 
+We created biochar out of excess forest material from a thinning treatment project and applied it to forest soils. We applied two different rates of biochar (10 Mg ha-1 and 20 Mg ha-1) along with the control (0 Mg ha-1) to three different replicate plots for a total of 9 plots. 
+
+We installed 6 soil respiration collars in each replicate plot (total of 54 collars) that exist to collect soil respiration data from on a weekly basis during the summer/fall.  
+
+We collected initial samples of soil prior  to adding biochar to measure bulk density (1 sample per Treatment replicate, at 3 different depths) and carbon and nitrogen samples (3 samples per Treatment replicate, at 3 different depths per sample). We have yet to collect a second round of samples to compare it to. We collected soil respiration from each collar on a weekly basis from June to October of 2025. 
+
+
+### 1.3 Objectives for WLF5530 class project
+
+For this project, we need to load, clean, summarize, average, and display the data we have collected thus far.
+
+Carbon and nitrogen data: Since we only have collected our initial samples, we can visualize these by depth and by treatment.
+Bulk Density: We also have only collected the initial samples. We can visualize these by site and by depth.
+Soil Respiration: We have multiple sampling events of each collar over a period of time. We can visualize them by averaging the data by biochar rate. The soil respiration machine also records the soil temperature and soil moisture, but due to too many errors with the probe we used, we will not look at that data for now. We have additional soil temperature and moisture probes in the field that have been collecting data that we have yet to look at. 
+
+
+## Chapter 2: Setting up the database
+
+### Database visualization
+
+The Site_Soil_Collars_Key references the Site Names and (Soil respiration) Collars, mainly for soil respiration sampling and keeping track of which collars are in which sites and what treatment is in each site. 
+
+The Site_Soil_Collars_Key has the primary key of the collar number, which exists as a reference for the site and treatment that applies to each collar.
+
+Each table of data (sans the Site_Soil_Collars_Key) has a primary key known as the "sampling event" which is denoted by two numbers correlating to the type of sample it is, following by a number to distinguish each individual sample.
+BD = Bulk density sample
+CN = Carbon and Nitrogen sample
+RS = Soil respiration
+
+We can relate the Bulk Density and Carbon and Nitrogen through the foreign key of Site Name.   
+
+Dates are not going to be considered any kind of foreign key here with bulk density or carbon and nitrogen samples because all these samples are baseline data, and we have not collected the second round of soil samples to compare these values to. Dates in the respiration data are only going to relate to other dates within the soil respiration data. 
+
+
+```{r db_design, fig.cap="Database Visualizaion", echo=FALSE}
+knitr::include_graphics("C:/Users/juliams/OneDrive - University of Idaho/Classes/WLF5530/Final_project/Database-Design_Final_Project.png")
+```
+
+### 2.2 Load RStudio Packages 
+```{r pkgs, echo = TRUE, message = FALSE, warning = FALSE}
+
+library(DBI)
+library(RSQLite)
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+### 2.3 Create a database in SQLite 
+
+#### Creating the database through SQLite
+First, I went into SQLite and created a database called "Final_Project_database" through 
+Database -> Add Database -> Select an existing database file
+I selected the file "Final_Project WLF5530" which already has the csv files of my data in it. 
+
+### 2.4 Connecting to the database through RStudio
+```{r Connect to database, echo = TRUE, message = TRUE, warning = TRUE}
+
+Final_Project_db <- dbConnect(drv = SQLite(), "C:/Users/juliams/OneDrive - University of Idaho/Classes/WLF5530/Final_project/Final_project_database.db")
+```
+
+### 2.5 Creating tables in the SQLite database through RStudio
+
+For the purpose of this project, I will be averaging all the data by depth (BD and CN soil samples) and then by Biochar treatment.
+
+#### Creating the Bulk Density Table
+```{r Creating Bulk Density Table, echo = TRUE, message = TRUE, warning = TRUE, eval = FALSE}
+dbExecute( conn = Final_Project_db, statement =
+"CREATE TABLE Bulk_Density_Data (
+BD_Sampling_Event varchar(5)
+Site_Name varchar(5),
+Treatment varchar(3),
+Sample_ID varchar(7),
+Depth char(2),
+Date varchar(8),
+Bulk_Density varchar(10),
+PRIMARY KEY (BD_Sampling_Event)),
+FOREIGN KEY(Site_Name) REFERENCES Site_Collars_Key(Site_Name),
+FOREIGN KEY(Site_Name) REFERENCES CN_Data(Site_Name));")
+```
+
+#### Creating the CN Data Table
+```{r Creating CN Data Table, echo = TRUE, message = TRUE, warning = FALSE, eval = FALSE}
+dbExecute(conn = Final_Project_db, statement = 
+            "CREATE TABLE CN_Data (
+CN_Sampling_Event varchar(4),
+Site_Name varchar(5),
+Sample_ID varchar(7),
+Treatment varchar(3),
+Replicate INTEGER,
+Depth numeric(2),
+Percent_N varchar(6),
+Percent_C varchar(6),
+Date varchar(8),
+PRIMARY KEY (CN_Sampling_Event)
+FOREIGN KEY(Site_Name) REFERENCES Site_Collars_Key(Site_Name),
+FOREIGN KEY(Site_Name) REFERENCES Bulk_Density_Data(Site_Name));")
+```
+
+
+#### Creating the Sites, Collars Key Table
+```{r Creating Sites_Collars_Key Table, echo = TRUE, message = TRUE, warning = FALSE, eval = FALSE}
+dbExecute(conn = Final_Project_db, statement =
+"CREATE TABLE Sites_Collars_Key (
+Site_Name varchar(5),
+Collar_Number varchar(4),
+Treatment varchar(3),
+PRIMARY KEY (Collar_Number));")
+```
+
+#### Creating the Respiration Data Table
+```{r Respiration Data Table, echo = TRUE, message = TRUE, warning = FALSE, eval = FALSE}
+dbExecute(conn = Final_Project_db, statement = "CREATE TABLE Respiration_Data (
+RS_Sampling_Event varchar(5),
+Collar_Number varchar(2),
+Treatment varchar(9),
+Date varchar(8),
+T_Soil varchar(5),
+M_Soil varchar(5),
+CO2_Flux varchar(6),
+PRIMARY KEY (RS_Sampling_Event)),
+FOREIGN KEY(Collar_Number) REFERENCES Site_Collars_Key(Collar_Number));)")
+```
+
+### 2.6 Loading each of the csvs
+```{r Loading each csv, echo = TRUE, message = TRUE, warning = FALSE}
+Bulk_Density_Data <- read.csv("Bulk_Density_Data.csv")
+Respiration_Data <- read.csv("Respiration_Data.csv")
+CN_Data <- read.csv("CN_Data.csv")
+Sites_Collars_Key <- read.csv("Sites_Collars_Key.csv")
+```
+
+### 2.7 Populating each of the tables 
+
+Since each of the columns I created through the "dbExecute CREATE TABLE" command matches the columns in the csv files, I can use the command "append" to match them to load the data from each csv file into the tables through dbWriteTable.
+
+#### The Bulk Density Table
+
+```{r echo = TRUE, message = TRUE, warning = FALSE}
+dbWriteTable(conn = Final_Project_db, 
+             name = "Bulk_Density_Data",
+             value = Bulk_Density_Data,
+             append = TRUE
+             )
+```
+
+#### The Respiration Table
+```{r echo = TRUE, message = TRUE, warning = FALSE}
+dbWriteTable(conn = Final_Project_db, 
+             name = "Respiration_Data",
+             value = Respiration_Data,
+             append = TRUE
+             )
+
+```
+
+#### The CN Table
+
+```{r echo = TRUE, message = TRUE, warning = FALSE}
+dbWriteTable(conn = Final_Project_db, 
+             name = "CN_Data",
+             value = CN_Data,
+             append = TRUE
+             )
+
+```
+##### The Sites, Collars, Key Table
+```{r echo = TRUE, message = TRUE, warning = FALSE}
+dbWriteTable(conn = Final_Project_db, 
+             name = "Sites_Collars_Key",
+             value = Sites_Collars_Key,
+             append = TRUE
+             )
+```
+
+
+### Loading the Tables
+```{r echo = TRUE, message = TRUE, warning = FALSE}
+
+Sites_Collars_Key <-dbGetQuery(Final_Project_db, "SELECT * FROM Sites_Collars_Key")
+Respiration_Data <-dbGetQuery(Final_Project_db, "SELECT * FROM Respiration_Data")
+CN_Data <-dbGetQuery(Final_Project_db, "SELECT * FROM CN_Data")
+Bulk_Density_Data <- dbGetQuery(Final_Project_db, "SELECT * FROM Bulk_Density_Data")
+
+```
+
+
+
+## Chapter 3:  Cleaning/Wrangling the Data
+
+### 3.1 Recap of information pertaining to data
+
+There are 3 different biochar treatments, (0, 10 Mg/ha and 20 Mg/ha). Each biochar treatment has 3 replicates. (e.g. the Control (0) treatment has BC-1, BC-2, and BC-3) The first two letters of the Site name correlate to the biochar treatment, and the number following them is the replicate.
+Bulk denisty: Only one soil replicate was collected from each site replicate, but each sample has 3 different depths. So for the Site "B20-2", there are samples for the depths 0-10 ("10"), 10-20 ("20"), and 20-30 ("30"). for a total of 27 samples. These samples can be paired by site and by depth.
+CN: 3 samples of soil replicates were collected from each site replicate, and each replicate contains 3 depths: 0-10 ("10"), 10-20 ("20"), and 20-30 ("30") for a total of 80 samples (supposed to be 81, but one was not viable).
+Respiration: This data was collected on weekly basis. There are 6 samples collected from each site replicate, for a total of 54 samples per visit. 
+
+The Sites_Collars_Key is more of a guide, so no cleaning needs to be done for that one. 
+
+### 3.2 Respiration Data Cleaning
+
+```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
+#In the Respiration Data, the Treatment column values are worded differently from the rest. 
+#Instead of being "BC", "B10" and "B20", it is "Control", "Biochar10", and "Biochar20". #We want to rename these to match.
+#We want the treatments to be in the order of the amount of biochar that is added.
+#I also want the dates in the data to be treated as dates.
+Respiration_Data <- Respiration_Data %>% 
+  mutate(Treatment = recode(Treatment,
+                           "Control" = "BC",
+                           "Biochar10" = "B10",
+                           "Biochar20" = "B20")) %>% 
+  mutate(Treatment = factor(Treatment, levels = c("BC", "B10", "B20"))) %>% 
+  mutate(Date = mdy(Date))
+
+#Checking to see if the Date column is treated as a date.
+class(Respiration_Data$Date)
+
+
+#We also want to average out the respiration data across all treatments and by date. 
+#We want to ignore all the 0s, negative numbers and NAs.  
+
+Rs_Data_Clean <- Respiration_Data %>% 
+  filter(CO2_Flux > 0) %>% 
+  group_by(Treatment, Date) %>% 
+  summarize(Average_CO2 = mean(CO2_Flux, na.rm = TRUE))
+
+
+#Now we have each soil respiration average by biochar treatment on each of the dates we sampled. 
+```
+
+
+### 3.3 Carbon and Nitrogen Data Cleaning
+
+
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+#To clean up the Carbon and Nitrogen soil sample data, we need to average the replicates of the soil samples and also average the soil sites. 
+#Upon running this code, I kept getting one row of NAs that seemed to be correlating to the first line
+#of the csv, so I had to filter to get rid of it.
+#We can combine the Site Names by the first two letters as this correlates to the biochar treatment, and rename them to correlate to the treatments as listed in the respiration data.
+#We want the treatments as well as the depths to be listed as factors in their respective order. 
+
+#Averaging Carbon and Nitrogen Data
+CN_Data_Clean <- CN_Data %>%
+  filter(!is.na(Site_Name), !is.na(Depth)) %>% 
+  mutate(Site_Name = substr(Site_Name, 1,2)) %>%
+   mutate(Site_Name = recode(Site_Name,
+                            "BC"="BC",
+                            "B1" = "B10",
+                            "B2"= "B20")) %>% 
+  mutate(Site_Name = factor(Site_Name, levels = c("BC", "B10", "B20"))) %>%
+  group_by(Site_Name, Depth) %>% 
+  summarize(Average_C = mean(Percent_C),Average_N = mean(Percent_N)) %>% 
+  mutate(Depth = factor(Depth, levels = c("10", "20", "30")))
+  
+
+#Now we have a table (CN_Data_Clean) that has the Average percent of C and N soil content by depth. 
+```
+### 3.4 Bulk Density Data Cleaning
+
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+#Lets average the bulk density data by Biochar Treatment and depth as well. There is only one replicate per Treatment and depth, so no need to average the replicate soil samples like we did in the Carbon and Nitrogen Data. 
+#We will rename the site name the biochar treatment like we did for the CN data. 
+
+BD_Data_Clean <- Bulk_Density_Data %>%
+  mutate(Site_Name = substr(Site_Name, 1,2)) %>%
+  mutate(Site_Name = recode(Site_Name,
+                            "BC"="BC",
+                            "B1" = "B10",
+                            "B2"= "B20")) %>% 
+  mutate(Site_Name = factor(Site_Name, levels = c("BC", "B10", "B20"))) %>% 
+  group_by (Site_Name, Depth) %>% 
+  summarize(Average_BD = mean(Bulk_Density)) %>% 
+  mutate(Depth = factor(Depth, levels = c("10", "20", "30")))
+  
+```
+
+### 3.5 Getting C:N Ratios 
+
+#### Carbon to Nitrogen ratios are an important factor in forest health. Lets see how they differ by biochar treatments. We can plot them later on to compare.
+```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
+
+CN_Data_Clean <- CN_Data_Clean %>% 
+  mutate(CN_Ratio = (Average_C/Average_N))
+
+```
+```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
+
+#Lets combine the Bulk Density Data and Carbon and Nitrogen Data.
+#We already mutated the site name when we cleaned up the CN data, so we will re-average the replicates by depth from the original data.
+
+CN_Data_Avg <- CN_Data %>% 
+  group_by (Site_Name, Depth) %>%
+  summarize(Average_C = mean(Percent_C),Average_N = mean(Percent_N))
+
+#Now lets combine it with the BD table by Site_Name and depth of sample. We will use a left join, and either one of these tables will work as being the "left" table. Dates are not to be worried about, as these were all collected on the same day. We want the depths to be listed as factors for graphing purposes.
+
+CN_BD_Data <- left_join(Bulk_Density_Data, CN_Data_Avg, by = c("Site_Name", "Depth"))
+
+```
+
+
+## Chapter 4: Plotting the Data
+
+### 4.1 Soil Respiration Averages by Biochar Treatment over Time
+
+#### I would like to plot the average soil respiration by treatment over time. I was going to use the RS_Clean Data, but upon graphing that, I realized the original data was much better for box plots. 
+
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+Respiration_Data %>% 
+ggplot(aes(x = factor(Date), y = CO2_Flux, fill = Treatment)) +
+geom_boxplot(alpha = 0.8, outlier.shape = NA, color = "black",
+               position = position_dodge(width = 0.8)) +
+scale_fill_manual(values = c(
+    "BC" = "#0072B2",
+    "B10" = "#8B1C62",
+    "B20" = "#E66100")) +
+labs(title = "Soil Respiration", x= "Date", y = "Average CO2 (gCO2*m^2*hr^-1)") +
+theme_bw()+
+ theme(
+    axis.title = element_text(size = 10),
+    axis.text.x = element_text(size = 10, angle = 60, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 8),
+    plot.title = element_text(size = 14, hjust = 0.5))
+```
+  
+### 4.2 Bulk Density by Depth
+
+#### Lets vizualize Bulk Density by Treatment and by Depth
+
+```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
+
+BD_Data_Clean %>% 
+  ggplot(aes(x = Depth, y = Average_BD, fill = Site_Name))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9))+
+  scale_fill_manual(values = c(
+    "BC" = "#0072B2",
+    "B10" = "#8B1C62",
+    "B20" = "#E66100"))+
+  theme_bw() +
+    labs(title = "Bulk Density",
+         x = "Depth (cm)",
+         y = "Average Bulk Density (g/cm^3)",
+         fill = "Biochar Treatment") +
+  theme(
+    axis.title = element_text(size = 10,),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 8),
+    plot.title = element_text(size = 16, hjust = 0.5)
+    )
+```
+
+
+
+### 4.3 Carbon % Stocks by Depth 
+
+#### We can look at soil Carbon stocks and see how they differ by depth and by treatment.
+
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+CN_Data_Clean %>% 
+  ggplot(aes(x = Depth, y = Average_C, fill = Site_Name))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9))+
+  scale_fill_manual(values = c(
+    "BC" = "#0072B2",
+    "B10" = "#8B1C62",
+    "B20" = "#E66100"))+
+  theme_bw() +
+    labs(title = "Soil Carbon %",
+         x = "Depth (cm)",
+         y = "% Carbon in Soil",
+         fill = "Biochar Treatment") +
+  theme(
+    axis.title = element_text(size = 10,),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 8),
+    plot.title = element_text(size = 16, hjust = 0.5)
+    )
+```
+
+### 4.4 Nitrogen % Stocks by Depth 
+
+#### We can look at soil Nitrogen stocks and see how they differ by depth and by treatment.
+
+```{r echo = TRUE, message = FALSE, warning = FALSE}
+CN_Data_Clean %>% 
+  ggplot(aes(x = Depth, y = Average_N, fill = Site_Name))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9))+
+  scale_fill_manual(values = c(
+    "BC" = "#0072B2",
+    "B10" = "#8B1C62",
+    "B20" = "#E66100"))+
+  theme_bw() +
+    labs(title = "Soil Nitrogen %",
+         x = "Depth (cm)",
+         y = "% Nitrogen in Soil",
+         fill = "Biochar Treatment") +
+  theme(
+    axis.title = element_text(size = 10,),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 8),
+    plot.title = element_text(size = 16, hjust = 0.5)
+    )
+```
+
+### CN Ratios By Depth
+
+```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
+CN_Data_Clean %>% 
+  ggplot(aes(x = Depth, y = CN_Ratio, fill = Site_Name))+
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9))+
+  scale_fill_manual(values = c(
+    "BC" = "#0072B2",
+    "B10" = "#8B1C62",
+    "B20" = "#E66100"))+
+  theme_bw() +
+    labs(title = "CN Ratios",
+         x = "Depth (cm)",
+         y = "CN Ratio",
+         fill = "Biochar Treatment") +
+  theme(
+    axis.title = element_text(size = 10,),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 8),
+    plot.title = element_text(size = 16, hjust = 0.5)
+    )
+```
+
+### % Carbon and BD
+
+#### Should we see if the %Carbon in soil and bulk density have a correlation? Lets find out.
+
+```{r echo = TRUE, message = FALSE, warning = FALSE, eval = TRUE}
+CN_BD_Data %>% 
+ggplot(aes(x = Average_C, y = Bulk_Density)) +
+geom_point()+
+  geom_smooth(method = "lm")+
+  theme_bw()+
+  labs(title = "BD and % Carbon",
+         x = "% Carbon",
+         y = "Bulk Density") +
+   theme(
+    axis.title = element_text(size = 10,),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(size = 16, hjust = 0.5))
+
+```
+##### This is somewhat of a correlation!
+
